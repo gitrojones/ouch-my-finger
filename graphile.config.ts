@@ -1,31 +1,26 @@
-// @ts-check
 import { makePgService } from "@dataplan/pg/adaptors/pg";
-import AmberPreset from "postgraphile/presets/amber";
-import { makeV4Preset } from "postgraphile/presets/v4";
+import { PostGraphileAmberPreset } from "postgraphile/presets/amber";
 import { PostGraphileConnectionFilterPreset } from "postgraphile-plugin-connection-filter";
 import { PgAggregatesPreset } from "@graphile/pg-aggregates";
-import { PgManyToManyPreset } from "@graphile-contrib/pg-many-to-many";
-// import { PgSimplifyInflectionPreset } from "@graphile/simplify-inflection";
-import PersistedPlugin from "@grafserv/persisted";
-import { PgOmitArchivedPlugin } from "@graphile-contrib/pg-omit-archived";
+import { PgSimplifyInflectionPreset } from "@graphile/simplify-inflection";
+import { default as PersistedPlugin } from "@grafserv/persisted";
+import { FooSubscriptionPlugin } from "./FooSubscriptionPlugin.js";
 
 // For configuration file details, see: https://postgraphile.org/postgraphile/next/config
 
-/** @satisfies {GraphileConfig.Preset} */
-const preset = {
+console.log('ENV', process.env.DATABASE_URL, process.env.DATABASE_SCHEMAS);
+
+export const preset: GraphileConfig.Preset = {
   extends: [
-    AmberPreset.default ?? AmberPreset,
-    makeV4Preset({
-      /* Enter your V4 options here */
-      graphiql: true,
-      graphiqlRoute: "/",
-    }),
+    PostGraphileAmberPreset,
     PostGraphileConnectionFilterPreset,
-    PgManyToManyPreset,
+    PgSimplifyInflectionPreset,
     PgAggregatesPreset,
-    // PgSimplifyInflectionPreset
   ],
-  plugins: [PersistedPlugin.default, PgOmitArchivedPlugin],
+  plugins: [
+    PersistedPlugin,
+    FooSubscriptionPlugin
+  ],
   pgServices: [
     makePgService({
       // Database connection string:
@@ -40,10 +35,12 @@ const preset = {
     port: 5678,
     websockets: true,
     allowUnpersistedOperation: true,
+    maskError(err) {
+      console.log('We expect the foo subscription error to land here before being dumped to the front-end', err);
+      return new GraphQLError('Sanitized output');
+    }
   },
   grafast: {
     explain: true,
   },
 };
-
-export default preset;
